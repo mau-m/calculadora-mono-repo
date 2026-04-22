@@ -1,0 +1,19 @@
+# CODEOWNERS - Reglas de propiedad del monorepo
+
+# Propiedad global
+*                   @jluisquf @Bxtto @eeloc37 @hernandev96 @mau-m @MMCJUAREZ
+
+# Backend - @eeloc37 (enoc) y @Bxtto (humberto)
+/backend/           @eeloc37 @Bxtto
+
+# Frontend - @mau-m
+/frontend/          @mau-m
+
+# Infraestructura - @MMCJUAREZ (ulises) y @hernandev96 (hernan)
+/infra/             @MMCJUAREZ @hernandev96
+
+# Kubernetes manifests - infra team + global
+/k8s/               @MMCJUAREZ @hernandev96
+
+# CI/CD workflows - todos deben revisar
+/.github/workflows/ @jluisquf

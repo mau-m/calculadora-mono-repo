@@ -1,0 +1,29 @@
+# docker-compose.yml (raiz del monorepo)
+# Simula el comportamiento de Kubernetes en local:
+#   frontend (Nginx) sirve / y proxea /api → backend:8000
+# Acceso: http://localhost
+
+services:
+  backend:
+    build: ./backend
+    expose:
+      - "8000"
+    environment:
+      - ENVIRONMENT=dev
+      - ALLOWED_ORIGINS=http://localhost
+      - LOG_LEVEL=debug
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    environment:
+      - BACKEND_HOST=backend
+    depends_on:
+      backend:
+        condition: service_healthy

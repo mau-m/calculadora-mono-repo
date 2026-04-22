@@ -1,0 +1,27 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main, 'feature/**', 'fix/**']
+    paths: ['frontend/**']
+  pull_request:
+    branches: [main]
+    paths: ['frontend/**']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t frontend-test ./frontend
+
+      - name: Test container starts
+        run: |
+          docker run -d --name fe-test -e BACKEND_HOST=localhost frontend-test
+          sleep 3
+          docker exec fe-test wget -q --spider http://localhost/ || exit 1
+          echo "Frontend container OK"
+          docker stop fe-test

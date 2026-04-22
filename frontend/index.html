@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Calculadora · API</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="wrap">
+
+    <div class="card">
+      <h1 class="title">Calculadora con API REST</h1>
+      <p class="msg" id="health-msg">Verificando API…</p>
+
+      <form class="form" onsubmit="return false;">
+        <div class="row">
+          <span>Número A</span>
+          <input type="number" id="in-a" step="any" value="2">
+        </div>
+        <div class="row">
+          <span>Número B</span>
+          <input type="number" id="in-b" step="any" value="3">
+        </div>
+
+        <div class="actions">
+          <button class="btn" onclick="sumar()">Sumar (GET)</button>
+          <button class="btn ghost" onclick="restar()">Restar (GET)</button>
+          <button class="btn" onclick="multiplicar()">Multiplicar (POST)</button>
+          <button class="btn ghost" onclick="dividir()">Dividir (POST)</button>
+        </div>
+
+        <div class="row">
+          <span>Respuesta</span>
+          <pre class="card" id="out">—</pre>
+        </div>
+      </form>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
