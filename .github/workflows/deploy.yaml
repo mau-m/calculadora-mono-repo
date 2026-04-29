@@ -1,0 +1,66 @@
+name: Deploy a desarrollo en AWS
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy en EC2 via CodeDeploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validar que el tag apunta al HEAD de main
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          MAIN_SHA="$(git rev-parse origin/main)"
+          TAG_SHA="${GITHUB_SHA}"
+
+          if [[ "${TAG_SHA}" != "${MAIN_SHA}" ]]; then
+            echo "## Deploy bloqueado" >> "$GITHUB_STEP_SUMMARY"
+            echo "El tag '${GITHUB_REF_NAME}' apunta a ${TAG_SHA}, pero el HEAD de main es ${MAIN_SHA}." >> "$GITHUB_STEP_SUMMARY"
+            echo "Crea el tag sobre el último commit de main y vuelve a pushearlo." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          echo "## Deploy permitido" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tag '${GITHUB_REF_NAME}' confirmado en HEAD de main (${MAIN_SHA})." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Configurar credenciales AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Escribir la versión en el artefacto
+        run: |
+          # Escribe el tag (ej: v1.2.3) en un archivo que el script de EC2 leerá
+          echo "${{ github.ref_name }}" > .app-version
+
+      - name: Preparar artefacto de CodeDeploy
+        run: |
+          # Empaqueta todo: appspec.yml, scripts, docker-compose-aws.yml y el archivo de versión
+          zip -r deploy.zip appspec.yml scripts/ docker-compose-aws.yml .app-version
+
+      - name: Subir artefacto a S3
+        run: |
+          aws s3 cp deploy.zip s3://${{ vars.S3_BUCKET }}/releases/${{ github.ref_name }}.zip
+
+      - name: Crear deployment en CodeDeploy
+        run: |
+          aws deploy create-deployment \
+            --application-name ${{ vars.CODEDEPLOY_APP }} \
+            --deployment-group-name ${{ vars.CODEDEPLOY_GROUP }} \
+            --s3-location bucket=${{ vars.S3_BUCKET }},key=releases/${{ github.ref_name }}.zip,bundleType=zip \
+            --description "Deploy ${{ github.ref_name }} (commit ${{ github.sha }})"

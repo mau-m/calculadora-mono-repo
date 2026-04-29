@@ -28,11 +28,15 @@ jobs:
 
       - name: Build y push de la imagen Backend
         env:
-          ECR_REGISTRY: ${{ vars.BACKEND_ECR_REGISTRY }}
+          BACKEND_ECR_REGISTRY: ${{ vars.BACKEND_ECR_REGISTRY }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY:$IMAGE_TAG ./backend/.
-          docker push $ECR_REGISTRY:$IMAGE_TAG
+          docker build \
+            -t $BACKEND_ECR_REGISTRY:$IMAGE_TAG \
+            -t $BACKEND_ECR_REGISTRY:latest \
+            ./backend/.
+          docker push $BACKEND_ECR_REGISTRY:$IMAGE_TAG
+          docker push $BACKEND_ECR_REGISTRY:latest
 
       - name: Escribir summary del job (Backend)
         if: always()
@@ -64,11 +68,15 @@ jobs:
 
       - name: Build y push de la imagen Frontend
         env:
-          ECR_REGISTRY: ${{ vars.FRONTEND_ECR_REGISTRY }}
+          FRONTEND_ECR_REGISTRY: ${{ vars.FRONTEND_ECR_REGISTRY }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY:$IMAGE_TAG ./frontend/.
-          docker push $ECR_REGISTRY:$IMAGE_TAG
+          docker build \
+            -t $FRONTEND_ECR_REGISTRY:$IMAGE_TAG \
+            -t $FRONTEND_ECR_REGISTRY:latest \
+            ./frontend/.
+          docker push $FRONTEND_ECR_REGISTRY:$IMAGE_TAG
+          docker push $FRONTEND_ECR_REGISTRY:latest
 
       - name: Escribir summary del job (Frontend)
         if: always()
