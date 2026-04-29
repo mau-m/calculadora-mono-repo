@@ -1,0 +1,19 @@
+services:
+  backend:
+    image: 940075379174.dkr.ecr.us-east-1.amazonaws.com/calculadora/backend:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=dev
+      - ALLOWED_ORIGINS=http://localhost
+      - LOG_LEVEL=debug
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app
+
+networks:
+  app:
