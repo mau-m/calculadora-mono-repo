@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   backend-build:
-    name: Build Docker images
+    name: Build Backend Docker Image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout del repositorio
@@ -26,12 +26,12 @@ jobs:
       - name: Autenticar Docker con ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build y push de la imagen API
+      - name: Build y push de la imagen Backend
         env:
           ECR_REGISTRY: ${{ vars.BACKEND_ECR_REGISTRY }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $BACKEND_ECR_REGISTRY:$IMAGE_TAG ./backend
+          docker build -t $BACKEND_ECR_REGISTRY:$IMAGE_TAG ./backend/.
           docker push $BACKEND_ECR_REGISTRY:$IMAGE_TAG
 
       - name: Escribir summary del job (Backend)
@@ -47,7 +47,7 @@ jobs:
           echo "- Image tag: ${IMAGE_TAG}" >> $GITHUB_STEP_SUMMARY
     
   frontend-build:
-    name: Build Docker image
+    name: Build Frontend Docker Image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout del repositorio
@@ -62,12 +62,12 @@ jobs:
       - name: Autenticar Docker con ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build y push de la imagen API
+      - name: Build y push de la imagen Frontend
         env:
           ECR_REGISTRY: ${{ vars.FRONTEND_ECR_REGISTRY }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $FRONTEND_ECR_REGISTRY:$IMAGE_TAG ./frontend
+          docker build -t $FRONTEND_ECR_REGISTRY:$IMAGE_TAG ./frontend/.
           docker push $FRONTEND_ECR_REGISTRY:$IMAGE_TAG
 
       - name: Escribir summary del job (Frontend)
