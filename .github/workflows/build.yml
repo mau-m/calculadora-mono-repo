@@ -13,24 +13,23 @@ jobs:
   build:
     name: Build Docker images
     runs-on: ubuntu-latest
-  
-  steps:
-    - name: Checkout del repositorio
-      uses: actions/checkout@v4
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
 
-    - name: Configurar credenciales AWS via OIDC
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-        aws-region: ${{ vars.AWS_REGION }}
-    
-    - name: Autenticar Docker con ECR
-      uses: aws-actions/amazon-ecr-login@v2
+      - name: Configurar credenciales AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
 
-    - name: Build y push de la imagen API
-      env:
-        ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        docker build -t $ECR_REGISTRY:$IMAGE_TAG ./backend/.
-        docker push $ECR_REGISTRY:$IMAGE_TAG
+      - name: Autenticar Docker con ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build y push de la imagen API
+        env:
+          ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY:$IMAGE_TAG ./backend
+          docker push $ECR_REGISTRY:$IMAGE_TAG
