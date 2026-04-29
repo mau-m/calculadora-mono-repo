@@ -50,8 +50,15 @@ jobs:
 
       - name: Preparar artefacto de CodeDeploy
         run: |
-          # Empaqueta todo: appspec.yml, scripts, docker-compose-aws.yml y el archivo de versión
-          zip -r deploy.zip appspec.yml scripts/ docker-compose-aws.yml .app-version
+          # Empaqueta con appspec.yml en la raíz del .zip (requerido por CodeDeploy)
+          rm -rf bundle deploy.zip
+          mkdir -p bundle
+          cp appspec.yml .app-version docker-compose-aws.yml bundle/
+          cp -r scripts bundle/
+          (
+            cd bundle
+            zip -r ../deploy.zip .
+          )
 
       - name: Subir artefacto a S3
         run: |
