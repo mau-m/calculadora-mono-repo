@@ -1,8 +1,8 @@
 services:
   backend:
     image: 940075379174.dkr.ecr.us-east-1.amazonaws.com/calculadora/backend:latest
-    ports:
-      - "8000:8000"
+    expose:
+      - 8000
     environment:
       - ENVIRONMENT=dev
       - ALLOWED_ORIGINS=http://localhost
@@ -12,6 +12,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    networks:
+      - app
+  frontend:
+    image: 940075379174.dkr.ecr.us-east-1.amazonaws.com/calculadora/frontend:latest
+    ports:
+      - "80:80"
+    environment:
+      BACKEND_HOST=backend
+    depends_on:
+      backend:
+        condition: service_healthy
     networks:
       - app
 
