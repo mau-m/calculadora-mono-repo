@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  backend-build:
     name: Build Docker images
     runs-on: ubuntu-latest
     steps:
@@ -28,8 +28,56 @@ jobs:
 
       - name: Build y push de la imagen API
         env:
-          ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+          ECR_REGISTRY: ${{ vars.BACKEND_ECR_REGISTRY }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY:$IMAGE_TAG ./backend
-          docker push $ECR_REGISTRY:$IMAGE_TAG
+          docker build -t $BACKEND_ECR_REGISTRY:$IMAGE_TAG ./backend
+          docker push $BACKEND_ECR_REGISTRY:$IMAGE_TAG
+
+      - name: Escribir summary del job (Backend)
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "## Resumen del job - Backend" >> $GITHUB_STEP_SUMMARY
+          echo "- Job: ${GITHUB_JOB}" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: ${JOB_STATUS}" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: ${GITHUB_SHA}" >> $GITHUB_STEP_SUMMARY
+          echo "- Image tag: ${IMAGE_TAG}" >> $GITHUB_STEP_SUMMARY
+    
+  frontend-build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar credenciales AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Autenticar Docker con ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build y push de la imagen API
+        env:
+          ECR_REGISTRY: ${{ vars.FRONTEND_ECR_REGISTRY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $FRONTEND_ECR_REGISTRY:$IMAGE_TAG ./frontend
+          docker push $FRONTEND_ECR_REGISTRY:$IMAGE_TAG
+
+      - name: Escribir summary del job (Frontend)
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "## Resumen del job - Frontend" >> $GITHUB_STEP_SUMMARY
+          echo "- Job: ${GITHUB_JOB}" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: ${JOB_STATUS}" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: ${GITHUB_SHA}" >> $GITHUB_STEP_SUMMARY
+          echo "- Image tag: ${IMAGE_TAG}" >> $GITHUB_STEP_SUMMARY
