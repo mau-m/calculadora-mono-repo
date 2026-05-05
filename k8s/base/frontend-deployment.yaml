@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ACCOUNT.dkr.ecr.REGION.amazonaws.com/frontend:latest
+          image: 940075379174.dkr.ecr.us-east-1.amazonaws.com/calculadora/frontend:latest
           ports:
             - containerPort: 80
           env:

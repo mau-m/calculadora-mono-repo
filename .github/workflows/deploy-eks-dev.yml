@@ -1,0 +1,153 @@
+name: Deploy DEV a EKS (tag dev/v*)
+
+on:
+  push:
+    tags:
+      - "dev/v*"
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-eks-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy-dev:
+    name: Build + Deploy a EKS (dev)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validar que el tag pertenece a main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+
+          TAG_SHA="${GITHUB_SHA}"
+
+          # Permite tag en cualquier commit alcanzable desde main (no solo HEAD)
+          if ! git merge-base --is-ancestor "${TAG_SHA}" "origin/main"; then
+            echo "## Deploy bloqueado" >> "$GITHUB_STEP_SUMMARY"
+            echo "El tag '${GITHUB_REF_NAME}' apunta a ${TAG_SHA}, que NO está en la historia de main." >> "$GITHUB_STEP_SUMMARY"
+            echo "Crea el tag sobre un commit de main y vuelve a pushearlo." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          echo "## Deploy permitido" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tag '${GITHUB_REF_NAME}' confirmado dentro de main." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Calcular tag de imagen (sin prefijo dev/)
+        id: vars
+        shell: bash
+        run: |
+          set -euo pipefail
+          REF_NAME="${GITHUB_REF_NAME}"
+          IMAGE_TAG="${REF_NAME#dev/}"
+
+          if [[ "${IMAGE_TAG}" == "${REF_NAME}" ]]; then
+            echo "Tag inesperado: ${REF_NAME} (se esperaba prefijo dev/)" >&2
+            exit 1
+          fi
+
+          # Docker tags NO permiten '/', por eso usamos solo 'v0.0.0'
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Configurar credenciales AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Autenticar Docker con ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build y push Backend (tag release)
+        env:
+          BACKEND_ECR_REGISTRY: ${{ vars.BACKEND_ECR_REGISTRY }}
+          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+          docker build -t "$BACKEND_ECR_REGISTRY:$IMAGE_TAG" ./backend/.
+          docker push "$BACKEND_ECR_REGISTRY:$IMAGE_TAG"
+
+      - name: Build y push Frontend (tag release)
+        env:
+          FRONTEND_ECR_REGISTRY: ${{ vars.FRONTEND_ECR_REGISTRY }}
+          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+          docker build -t "$FRONTEND_ECR_REGISTRY:$IMAGE_TAG" ./frontend/.
+          docker push "$FRONTEND_ECR_REGISTRY:$IMAGE_TAG"
+
+      - name: Instalar kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.0
+
+      - name: Instalar kustomize
+        shell: bash
+        env:
+          KUSTOMIZE_VERSION: 5.5.0
+        run: |
+          set -euo pipefail
+          OS=linux
+          ARCH=amd64
+          curl -fsSL -o kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_${OS}_${ARCH}.tar.gz"
+          tar -xzf kustomize.tar.gz
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - name: Configurar kubeconfig contra EKS
+        env:
+          EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+          kubectl version --client
+          kubectl cluster-info
+
+      - name: Deploy a namespace dev (kustomize overlay)
+        env:
+          BACKEND_ECR_REGISTRY: ${{ vars.BACKEND_ECR_REGISTRY }}
+          FRONTEND_ECR_REGISTRY: ${{ vars.FRONTEND_ECR_REGISTRY }}
+          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+
+          rm -rf /tmp/k8s
+          cp -R k8s /tmp/k8s
+
+          pushd /tmp/k8s/overlays/dev >/dev/null
+
+          # Sobrescribe imágenes del base (sin commitear cambios)
+          kustomize edit set image \
+            "$BACKEND_ECR_REGISTRY=$BACKEND_ECR_REGISTRY:$IMAGE_TAG" \
+            "$FRONTEND_ECR_REGISTRY=$FRONTEND_ECR_REGISTRY:$IMAGE_TAG"
+
+          kubectl apply -k .
+
+          popd >/dev/null
+
+      - name: Esperar rollout
+        run: |
+          set -euo pipefail
+          kubectl rollout status deployment/backend -n dev --timeout=180s
+          kubectl rollout status deployment/frontend -n dev --timeout=180s
+
+      - name: Resumen
+        if: always()
+        env:
+          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
+        run: |
+          echo "## Deploy DEV a EKS" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tag: ${GITHUB_REF_NAME}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image tag: ${IMAGE_TAG}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Namespace: dev" >> "$GITHUB_STEP_SUMMARY"

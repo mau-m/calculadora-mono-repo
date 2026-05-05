@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: ACCOUNT.dkr.ecr.REGION.amazonaws.com/backend:latest
+          image: 940075379174.dkr.ecr.us-east-1.amazonaws.com/calculadora/backend:latest
           ports:
             - containerPort: 8000
           env:
