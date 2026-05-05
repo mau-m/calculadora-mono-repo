@@ -45,8 +45,8 @@ jobs:
 
       - name: Escribir la versión en el artefacto
         run: |
-          # Escribe el tag (ej: v1.2.3) en un archivo que el script de EC2 leerá
-          echo "${{ github.ref_name }}" > .app-version
+          # El despliegue siempre consume la imagen latest publicada por build.yml
+          echo "latest" > .app-version
 
       - name: Preparar artefacto de CodeDeploy
         run: |

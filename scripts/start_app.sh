@@ -1,11 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-# Lee la versión desplegada (se escribió durante el workflow). Fallback: latest
+# Despliega siempre la imagen más reciente publicada en ECR.
 APP_VERSION="latest"
-if [[ -f /opt/mi-app/.app-version ]]; then
-  APP_VERSION="$(cat /opt/mi-app/.app-version)"
-fi
 export APP_VERSION
 
 cd /opt/mi-app
