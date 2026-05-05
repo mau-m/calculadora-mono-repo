@@ -1,6 +1,6 @@
 services:
   backend:
-    image: 940075379174.dkr.ecr.us-east-1.amazonaws.com/calculadora/backend:${APP_VERSION:latest}
+    image: 940075379174.dkr.ecr.us-east-1.amazonaws.com/calculadora/backend:${APP_VERSION:-latest}
     expose:
       - 8000
     environment:
@@ -15,7 +15,7 @@ services:
     networks:
       - app
   frontend:
-    image: 940075379174.dkr.ecr.us-east-1.amazonaws.com/calculadora/frontend:${APP_VERSION:latest}
+    image: 940075379174.dkr.ecr.us-east-1.amazonaws.com/calculadora/frontend:${APP_VERSION:-latest}
     ports:
       - "80:80"
     environment:
