@@ -19,7 +19,7 @@ aws ecr get-login-password --region "$AWS_REGION" | \
   "$ECR_REGISTRY"
 
 # Descarga las nuevas imágenes (backend + frontend)
-docker compose -f docker-compose-aws.yml pull backend:${APP_VERSION} frontend:${APP_VERSION}
+docker compose -f docker-compose-aws.yml pull backend:latest frontend:latest
 
 # Detiene los contenedores actuales y levanta los nuevos
 docker compose -f docker-compose-aws.yml down --remove-orphans
