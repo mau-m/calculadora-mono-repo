@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   deploy-dev:
-    name: Build + Deploy a EKS (dev)
+    name: Deploy a EKS (dev)
     runs-on: ubuntu-latest
 
     steps:
@@ -65,26 +65,34 @@ jobs:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Autenticar Docker con ECR
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build y push Backend (tag release)
+      - name: Validar que las imágenes existen en ECR (fail fast)
         env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
           BACKEND_ECR_REGISTRY: ${{ vars.BACKEND_ECR_REGISTRY }}
-          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
-        run: |
-          set -euo pipefail
-          docker build -t "$BACKEND_ECR_REGISTRY:$IMAGE_TAG" ./backend/.
-          docker push "$BACKEND_ECR_REGISTRY:$IMAGE_TAG"
-
-      - name: Build y push Frontend (tag release)
-        env:
           FRONTEND_ECR_REGISTRY: ${{ vars.FRONTEND_ECR_REGISTRY }}
           IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
         run: |
           set -euo pipefail
-          docker build -t "$FRONTEND_ECR_REGISTRY:$IMAGE_TAG" ./frontend/.
-          docker push "$FRONTEND_ECR_REGISTRY:$IMAGE_TAG"
+
+          BACKEND_REPOSITORY_NAME="${BACKEND_ECR_REGISTRY#*/}"
+          FRONTEND_REPOSITORY_NAME="${FRONTEND_ECR_REGISTRY#*/}"
+
+          if [[ -z "${BACKEND_REPOSITORY_NAME}" || -z "${FRONTEND_REPOSITORY_NAME}" ]]; then
+            echo "No pude derivar repository-name desde BACKEND_ECR_REGISTRY/FRONTEND_ECR_REGISTRY" >&2
+            exit 1
+          fi
+
+          aws ecr describe-images \
+            --region "$AWS_REGION" \
+            --repository-name "$BACKEND_REPOSITORY_NAME" \
+            --image-ids imageTag="$IMAGE_TAG" \
+            >/dev/null
+
+          aws ecr describe-images \
+            --region "$AWS_REGION" \
+            --repository-name "$FRONTEND_REPOSITORY_NAME" \
+            --image-ids imageTag="$IMAGE_TAG" \
+            >/dev/null
 
       - name: Instalar kubectl
         uses: azure/setup-kubectl@v4
@@ -111,8 +119,18 @@ jobs:
         run: |
           set -euo pipefail
           aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+
+          echo "Identidad AWS actual:" 
+          aws sts get-caller-identity
+
           kubectl version --client
-          kubectl cluster-info
+
+          if ! kubectl cluster-info; then
+            echo "## Error autenticando contra Kubernetes" >> "$GITHUB_STEP_SUMMARY"
+            echo "El role IAM asumido por GitHub Actions no está autorizado dentro del cluster EKS." >> "$GITHUB_STEP_SUMMARY"
+            echo "Solución: crea un EKS Access Entry para ${{ vars.AWS_ROLE_ARN }} o mapea el role en aws-auth (y aplica RBAC)." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
 
       - name: Deploy a namespace dev (kustomize overlay)
         env:
