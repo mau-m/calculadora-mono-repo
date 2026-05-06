@@ -48,16 +48,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          REF_NAME="${GITHUB_REF_NAME}"
-          IMAGE_TAG="${REF_NAME#dev/}"
-
-          if [[ "${IMAGE_TAG}" == "${REF_NAME}" ]]; then
-            echo "Tag inesperado: ${REF_NAME} (se esperaba prefijo dev/)" >&2
-            exit 1
-          fi
-
-          # Docker tags NO permiten '/', por eso usamos solo 'v0.0.0'
-          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          # Aunque el workflow se dispare con tags dev/vX.Y.Z, este repo publica
+          # imágenes con :latest (y además con :<github.sha>) en el workflow build.
+          # Por consistencia, el deploy consume :latest.
+          echo "image_tag=latest" >> "$GITHUB_OUTPUT"
 
       - name: Configurar credenciales AWS via OIDC
         uses: aws-actions/configure-aws-credentials@v4
